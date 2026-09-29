@@ -1,0 +1,26 @@
+{
+	"id": "rigflux-pulse",
+	"name": "rigflux-pulse",
+	"shortname": "pulse",
+	"description": "Run cues, stage messages, timers and looks on a RigFlux Pulse media server, with live cue feedback",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/bitfocus/companion-module-rigflux-pulse.git",
+	"bugs": "https://github.com/bitfocus/companion-module-rigflux-pulse/issues",
+	"maintainers": [
+		{
+			"name": "Ethan Stebbins",
+			"email": "ethan@rigflux.com.au"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../src/main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "RigFlux",
+	"products": ["Pulse"],
+	"keywords": ["media server", "playback", "video", "cues", "show control"]
+}

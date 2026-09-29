@@ -1,0 +1,29 @@
+{
+	"name": "rigflux-pulse",
+	"version": "0.1.0",
+	"main": "src/main.js",
+	"scripts": {
+		"format": "prettier -w .",
+		"package": "companion-module-build",
+		"test": "node --test test/*.test.js"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-rigflux-pulse.git"
+	},
+	"engines": {
+		"node": "^22.8",
+		"yarn": "^4"
+	},
+	"dependencies": {
+		"@companion-module/base": "~1.11.3",
+		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "~2.1.1",
+		"prettier": "^3.3.3"
+	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
+	"packageManager": "yarn@4.12.0"
+}
