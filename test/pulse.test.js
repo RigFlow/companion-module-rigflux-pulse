@@ -3,12 +3,12 @@
 // {"error"} body otherwise, and a WebSocket at /api/v1/events that sends
 // the whole state on connect and after each change.
 
-const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const http = require('node:http')
-const { once } = require('node:events')
-const { WebSocketServer } = require('ws')
-const { PulseClient, variablesFromState, cueChoices, segment } = require('../src/pulse')
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import http from 'node:http'
+import { once } from 'node:events'
+import { WebSocketServer } from 'ws'
+import { PulseClient, variablesFromState, cueChoices, segment } from '../src/pulse.js'
 
 const TOKEN = 'a'.repeat(64)
 

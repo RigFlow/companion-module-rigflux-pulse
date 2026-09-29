@@ -1,12 +1,14 @@
 {
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
 	"id": "rigflux-pulse",
 	"name": "rigflux-pulse",
 	"shortname": "pulse",
 	"description": "Run cues, stage messages, timers and looks on a RigFlux Pulse media server, with live cue feedback",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/bitfocus/companion-module-rigflux-pulse.git",
-	"bugs": "https://github.com/bitfocus/companion-module-rigflux-pulse/issues",
+	"repository": "git+https://github.com/RigFlow/companion-module-rigflux-pulse.git",
+	"bugs": "https://github.com/RigFlow/companion-module-rigflux-pulse/issues",
 	"maintainers": [
 		{
 			"name": "Ethan Stebbins",

@@ -3,20 +3,20 @@
 // every change. Nothing here knows about Companion, so it can be tested
 // against a fake engine.
 
-const { EventEmitter } = require('node:events')
-const WebSocket = require('ws')
+import { EventEmitter } from 'node:events'
+import WebSocket from 'ws'
 
 const API = '/api/v1'
 
 /** A failed request, with the engine's own message when it sent one. */
-class PulseError extends Error {
+export class PulseError extends Error {
 	constructor(status, message) {
 		super(message)
 		this.status = status
 	}
 }
 
-class PulseClient extends EventEmitter {
+export class PulseClient extends EventEmitter {
 	/**
 	 * @param {{ host: string, port: number, token: string }} options
 	 */
@@ -139,7 +139,7 @@ class PulseClient extends EventEmitter {
 }
 
 /** Companion variable values for a state snapshot. */
-function variablesFromState(state) {
+export function variablesFromState(state) {
 	return {
 		show_name: state.showName ?? '',
 		live_cue_number: state.liveCueNumber ?? '',
@@ -153,7 +153,7 @@ function variablesFromState(state) {
 }
 
 /** Dropdown choices for picking a cue, labelled as an operator reads them. */
-function cueChoices(cues) {
+export function cueChoices(cues) {
 	const seen = new Set()
 	const choices = []
 	for (const cue of cues) {
@@ -167,8 +167,6 @@ function cueChoices(cues) {
 }
 
 /** A path segment, escaped: names can hold spaces and slashes. */
-function segment(value) {
+export function segment(value) {
 	return encodeURIComponent(String(value).trim())
 }
-
-module.exports = { PulseClient, PulseError, variablesFromState, cueChoices, segment }

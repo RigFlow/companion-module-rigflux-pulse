@@ -1,12 +1,26 @@
-const { InstanceBase, InstanceStatus, Regex, runEntrypoint } = require('@companion-module/base')
-const UpgradeScripts = require('./upgrades')
-const UpdateActions = require('./actions')
-const UpdateFeedbacks = require('./feedbacks')
-const UpdatePresets = require('./presets')
-const UpdateVariableDefinitions = require('./variables')
-const { PulseClient, variablesFromState, cueChoices } = require('./pulse')
+import { InstanceBase, InstanceStatus, Regex } from '@companion-module/base'
+import { UpgradeScripts } from './upgrades.js'
+import { UpdateActions } from './actions.js'
+import { UpdateFeedbacks } from './feedbacks.js'
+import { UpdatePresets } from './presets.js'
+import { UpdateVariableDefinitions } from './variables.js'
+import { PulseClient, variablesFromState, cueChoices } from './pulse.js'
 
-class PulseInstance extends InstanceBase {
+export { UpgradeScripts }
+
+/**
+ * @typedef {import('@companion-module/base').CompanionOptionValues} OptionValues
+ * @typedef {{
+ *   config: { host: string, port: number },
+ *   secrets: { token?: string },
+ *   actions: Record<string, import('@companion-module/base').CompanionActionSchemaWithoutResult<OptionValues>>,
+ *   feedbacks: Record<string, import('@companion-module/base').CompanionFeedbackSchema<OptionValues>>,
+ *   variables: import('@companion-module/base').CompanionVariableValues,
+ * }} PulseSchema
+ */
+
+/** @extends {InstanceBase<PulseSchema>} */
+export default class PulseInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 		this.state = null
@@ -14,8 +28,9 @@ class PulseInstance extends InstanceBase {
 		this.client = null
 	}
 
-	async init(config) {
+	async init(config, _isFirstInit, secrets) {
 		this.config = config
+		this.secrets = secrets ?? {}
 		UpdateVariableDefinitions(this)
 		this.updateDefinitions()
 		this.start()
@@ -26,14 +41,16 @@ class PulseInstance extends InstanceBase {
 		this.client = null
 	}
 
-	async configUpdated(config) {
+	async configUpdated(config, secrets) {
 		this.config = config
+		this.secrets = secrets ?? {}
 		this.client?.close()
 		this.client = null
 		this.state = null
 		this.start()
 	}
 
+	/** @returns {import('@companion-module/base').SomeCompanionConfigField[]} */
 	getConfigFields() {
 		return [
 			{
@@ -63,7 +80,7 @@ class PulseInstance extends InstanceBase {
 				max: 65535,
 			},
 			{
-				type: 'textinput',
+				type: 'secret-text',
 				id: 'token',
 				label: 'Token',
 				width: 12,
@@ -74,7 +91,7 @@ class PulseInstance extends InstanceBase {
 
 	start() {
 		const host = (this.config.host ?? '').trim()
-		const token = (this.config.token ?? '').trim()
+		const token = (this.secrets.token ?? '').trim()
 		if (!host || !token) {
 			this.updateStatus(InstanceStatus.BadConfig, !host ? 'No engine address' : 'No token')
 			return
@@ -82,10 +99,8 @@ class PulseInstance extends InstanceBase {
 		this.updateStatus(InstanceStatus.Connecting)
 		const client = new PulseClient({ host, port: Number(this.config.port) || 7401, token })
 		this.client = client
-		client.on('connected', () => {
-			this.updateStatus(InstanceStatus.Ok)
-			this.refreshCues()
-		})
+		// The first state on the feed fetches the cue list (see applyState).
+		client.on('connected', () => this.updateStatus(InstanceStatus.Ok))
 		client.on('state', (state) => this.applyState(state))
 		client.on('disconnected', () => {
 			this.updateStatus(InstanceStatus.Disconnected, 'Lost the engine; retrying')
@@ -157,5 +172,3 @@ class PulseInstance extends InstanceBase {
 		}
 	}
 }
-
-runEntrypoint(PulseInstance, UpgradeScripts)

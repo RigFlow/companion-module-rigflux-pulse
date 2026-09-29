@@ -7,7 +7,9 @@ Controls a Pulse media server over its control API, and shows its live and next 
 1. In Pulse, open **Settings → Control API** and click **Turn on**.
 2. Copy the **port** and **token** shown there into this connection. Leave the address as `127.0.0.1` when Companion and Pulse are on the same Mac; otherwise use the engine Mac's address.
 
-Pulse makes a new token each time the API is turned on. If the connection shows **Authentication failure**, copy the token again.
+The token is kept in Companion's secret store, so it doesn't appear in exported configs. Pulse makes a new token each time the API is turned on. If the connection shows **Authentication failure**, copy the token again.
+
+This module needs Companion 4.3 or later.
 
 ### Actions
 

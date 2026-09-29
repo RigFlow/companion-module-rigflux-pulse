@@ -1,4 +1,4 @@
-const { combineRgb } = require('@companion-module/base')
+import { combineRgb } from '@companion-module/base'
 
 const RED = combineRgb(204, 0, 0)
 const AMBER = combineRgb(230, 150, 0)
@@ -6,7 +6,9 @@ const GREEN = combineRgb(0, 153, 51)
 const WHITE = combineRgb(255, 255, 255)
 const BLACK = combineRgb(0, 0, 0)
 
-module.exports = function (self, cueChoices) {
+/** @param {import('./main.js').default} self */
+export function UpdateFeedbacks(self, cueChoices) {
+	/** @type {import('@companion-module/base').CompanionInputFieldDropdown} */
 	const cueOption = {
 		type: 'dropdown',
 		id: 'cue',
