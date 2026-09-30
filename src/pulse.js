@@ -192,6 +192,8 @@ export function variablesFromState(state) {
 		missing_assets: state.missingAssetCount ?? 0,
 		unresolvable_assets: state.unresolvableAssetCount ?? 0,
 		missing_devices: state.missingDeviceCount ?? 0,
+		live_cue_type: state.liveCueType ?? '',
+		next_cue_type: state.nextCueType ?? '',
 		stage_message: state.stageMessage ?? '',
 		active_look: state.activeLook ?? '',
 		announcement_cue: state.announcementCueNumber ?? '',

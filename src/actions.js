@@ -176,6 +176,41 @@ export function UpdateActions(self, cueChoices) {
 				await self.send('POST', what === 'all' ? '/clear' : `/clear/${segment(what)}`)
 			},
 		},
+		...Object.fromEntries(
+			['stop', 'pause', 'resume'].map((verb) => [
+				verb,
+				{
+					name: { stop: 'Stop', pause: 'Pause', resume: 'Resume' }[verb],
+					description: {
+						stop: 'Takes a cue’s layers off screen, or everything. Props stay.',
+						pause: 'Freezes a cue’s timelines, video and sound, or everything on screen.',
+						resume: 'Carries on from where a pause froze it.',
+					}[verb],
+					options: [
+						{
+							type: 'dropdown',
+							id: 'cue',
+							label: 'Cue',
+							choices: [{ id: '', label: 'Everything' }, ...cueChoices],
+							default: '',
+							allowCustom: true,
+							tooltip: 'Everything, or pick or type a cue number',
+						},
+					],
+					callback: async (action) => {
+						const cue = text(action.options.cue)
+						await self.send('POST', cue ? `/cues/${segment(cue)}/${verb}` : `/${verb}`)
+					},
+				},
+			]),
+		),
+		take_over: {
+			name: 'Take over as leader',
+			description:
+				'On a backup engine: become the leader. For a pair, whose backup never takes over by itself. Only when the leader has stopped.',
+			options: [],
+			callback: () => self.send('POST', '/take-over'),
+		},
 		announcement_clear: {
 			name: 'Announcement: end',
 			options: [],

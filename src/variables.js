@@ -16,6 +16,8 @@ export function UpdateVariableDefinitions(self) {
 		missing_assets: { name: 'Missing media files' },
 		unresolvable_assets: { name: 'Media files that can’t be found at all' },
 		missing_devices: { name: 'Devices the show needs that the engine doesn’t have' },
+		live_cue_type: { name: 'Live cue type (look, fade, group, wait, memo, stop, pause, resume, goto…)' },
+		next_cue_type: { name: 'Next cue type' },
 		stage_message: { name: 'Stage message' },
 		active_look: { name: 'Active look (empty for the show’s own routing)' },
 		announcement_cue: { name: 'Announcement cue number (empty when none)' },

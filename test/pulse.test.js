@@ -225,6 +225,8 @@ test('variables fill from a state snapshot, with blanks when idle', () => {
 		media_position: '0:00',
 		media_duration: '0:00',
 		missing_devices: 0,
+		live_cue_type: '',
+		next_cue_type: '',
 	})
 })
 
