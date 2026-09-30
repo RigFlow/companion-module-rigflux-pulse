@@ -167,15 +167,18 @@ export function clock(seconds) {
 	return h > 0 ? `${sign}${h}:${String(m).padStart(2, '0')}:${s}` : `${sign}${m}:${s}`
 }
 
-/** The show's timers and props, each with the id its variables use. */
+/** The show's timers, props and independent lists, each with the id its variables use. */
 export function showItems(state) {
 	const timers = state?.timers ?? []
 	const props = state?.props ?? []
+	const lists = state?.independentLists ?? []
 	const timerIDs = slugs(timers.map((t) => t.name))
 	const propIDs = slugs(props.map((p) => p.name))
+	const listIDs = slugs(lists.map((l) => l.name))
 	return {
 		timers: timers.map((timer, i) => ({ ...timer, id: timerIDs[i] })),
 		props: props.map((prop, i) => ({ ...prop, id: propIDs[i] })),
+		lists: lists.map((list, i) => ({ ...list, id: listIDs[i] })),
 	}
 }
 
@@ -204,8 +207,15 @@ export function variablesFromState(state) {
 		media_remaining_seconds: media.remaining ?? 0,
 		media_position: clock(media.position ?? 0),
 		media_duration: clock(media.duration ?? 0),
+		is_paused: state.isPaused === true,
+		live_cue_notes: state.liveCueNotes ?? '',
+		next_cue_notes: state.nextCueNotes ?? '',
 	}
-	const { timers, props } = showItems(state)
+	const { timers, props, lists } = showItems(state)
+	for (const list of lists) {
+		values[`list_${list.id}_cue`] = list.liveCueNumber ?? ''
+		values[`list_${list.id}_cue_name`] = list.liveCueName ?? ''
+	}
 	for (const timer of timers) {
 		values[`timer_${timer.id}`] = timer.display
 		values[`timer_${timer.id}_seconds`] = timer.seconds

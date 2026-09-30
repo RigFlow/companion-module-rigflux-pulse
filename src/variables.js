@@ -28,8 +28,15 @@ export function UpdateVariableDefinitions(self) {
 		media_remaining_seconds: { name: 'Seconds left on the live cue’s video' },
 		media_position: { name: 'Position in the live cue’s video (M:SS)' },
 		media_duration: { name: 'Length of the live cue’s video (M:SS)' },
+		is_paused: { name: 'A Pause has frozen something on screen' },
+		live_cue_notes: { name: 'Live cue’s notes' },
+		next_cue_notes: { name: 'Next cue’s notes' },
 	}
-	const { timers, props } = showItems(self.state)
+	const { timers, props, lists } = showItems(self.state)
+	for (const list of lists) {
+		definitions[`list_${list.id}_cue`] = { name: `List “${list.name}”: its cue number` }
+		definitions[`list_${list.id}_cue_name`] = { name: `List “${list.name}”: its cue name` }
+	}
 	for (const timer of timers) {
 		definitions[`timer_${timer.id}`] = { name: `Timer: ${timer.name}` }
 		definitions[`timer_${timer.id}_seconds`] = { name: `Timer: ${timer.name} (seconds)` }

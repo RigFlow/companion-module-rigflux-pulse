@@ -33,9 +33,9 @@ function clearButton(what, label) {
 
 /**
  * @param {import('./main.js').default} self
- * @param {{ timers: { id: string, name: string }[], props: { id: string, name: string }[] }} items
+ * @param {{ timers: { id: string, name: string }[], props: { id: string, name: string }[], lists?: { id: string, name: string }[] }} items
  */
-export function UpdatePresets(self, cues, items = { timers: [], props: [] }) {
+export function UpdatePresets(self, cues, items = { timers: [], props: [], lists: [] }) {
 	const v = (name) => `$(${self.label}:${name})`
 	/** @type {import('@companion-module/base').CompanionPresetDefinitions<import('./main.js').PulseSchema>} */
 	const presets = {
@@ -73,6 +73,95 @@ export function UpdatePresets(self, cues, items = { timers: [], props: [] }) {
 			},
 		),
 		elapsed: button('Time since the live cue fired', `CUE\n${v('live_cue_elapsed')}`, null),
+		// The show-state page: a Stream Deck that mirrors the show with no
+		// setup — what's up, what's next, whether anything's wrong.
+		state_live: button(
+			'On screen',
+			`LIVE\n${v('live_cue_number')}\n${v('live_cue_name')}`,
+			null,
+			{},
+			{
+				bgcolor: RED,
+				feedbacks: [
+					{
+						feedbackId: 'paused',
+						options: {},
+						style: { bgcolor: AMBER, color: BLACK, text: `PAUSED\n${v('live_cue_number')}` },
+					},
+					{ feedbackId: 'standby', options: {}, style: { bgcolor: AMBER, color: BLACK, text: 'STANDBY\nnot leading' } },
+				],
+			},
+		),
+		state_next: button(
+			'Up next',
+			`NEXT\n${v('next_cue_number')}\n${v('next_cue_name')}`,
+			null,
+			{},
+			{
+				feedbacks: [
+					{ feedbackId: 'cue_type', options: { which: 'next', type: 'stop' }, style: { bgcolor: AMBER, color: BLACK } },
+				],
+			},
+		),
+		state_go: button(
+			'GO',
+			`GO\n${v('next_cue_number')}`,
+			'go',
+			{},
+			{
+				bgcolor: GREEN,
+				feedbacks: [
+					{ feedbackId: 'standby', options: {}, style: { bgcolor: GREY, color: WHITE, text: 'GO\n(standby)' } },
+				],
+			},
+		),
+		state_pause: button(
+			'Pause / resume',
+			'PAUSE',
+			'pause_toggle',
+			{},
+			{
+				feedbacks: [{ feedbackId: 'paused', options: {}, style: { bgcolor: AMBER, color: BLACK, text: 'RESUME' } }],
+			},
+		),
+		state_media: button(
+			'Media problems',
+			'MEDIA\nOK',
+			null,
+			{},
+			{
+				bgcolor: GREEN,
+				feedbacks: [
+					{
+						feedbackId: 'missing_media',
+						options: {},
+						style: { bgcolor: RED, color: WHITE, text: `MISSING\n${v('missing_assets')}` },
+					},
+				],
+			},
+		),
+	}
+
+	// A GO and a display per list that runs on its own.
+	for (const list of items.lists ?? []) {
+		presets[`list_go_${list.id}`] = button(
+			`GO ${list.name}`,
+			`GO\n${list.name}`,
+			'go_list',
+			{ list: list.name },
+			{ bgcolor: GREEN },
+		)
+		presets[`list_live_${list.id}`] = button(
+			`${list.name}: on screen`,
+			`${list.name}\n${v(`list_${list.id}_cue`)}\n${v(`list_${list.id}_cue_name`)}`,
+			null,
+			{},
+			{
+				feedbacks: [
+					{ feedbackId: 'list_cue_live', options: { list: list.name, cue: '' }, style: { bgcolor: RED, color: WHITE } },
+				],
+			},
+		)
 	}
 
 	// A display per timer — red once a countdown runs out — and a toggle per
@@ -135,6 +224,30 @@ export function UpdatePresets(self, cues, items = { timers: [], props: [] }) {
 
 	/** @type {import('@companion-module/base').CompanionPresetSection<import('./main.js').PulseSchema>[]} */
 	const structure = [
+		{
+			id: 'show_state',
+			name: 'Show state',
+			definitions: [
+				{
+					id: 'state',
+					type: 'simple',
+					name: 'Show state',
+					description:
+						'A page that mirrors the show: on screen (amber when paused or on a standby), up next (amber before a Stop), GO, pause/resume, and media problems.',
+					presets: ['state_live', 'state_next', 'state_go', 'state_pause', 'time_left', 'state_media'],
+				},
+				...((items.lists ?? []).length
+					? [
+							{
+								id: 'lists',
+								type: /** @type {const} */ ('simple'),
+								name: 'Lists that run on their own',
+								presets: (items.lists ?? []).flatMap((l) => [`list_go_${l.id}`, `list_live_${l.id}`]),
+							},
+						]
+					: []),
+			],
+		},
 		{
 			id: 'transport',
 			name: 'Transport',

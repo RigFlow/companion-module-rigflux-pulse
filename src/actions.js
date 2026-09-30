@@ -26,8 +26,12 @@ function text(value) {
 	return String(value ?? '').trim()
 }
 
-/** @param {import('./main.js').default} self */
-export function UpdateActions(self, cueChoices) {
+/**
+ * @param {import('./main.js').default} self
+ * @param {{ lists?: { name: string }[] }} items
+ */
+export function UpdateActions(self, cueChoices, items = { lists: [] }) {
+	const lists = (items.lists ?? []).map((l) => ({ id: l.name, label: l.name }))
 	self.setActionDefinitions({
 		go: {
 			name: 'GO (next cue)',
@@ -204,6 +208,32 @@ export function UpdateActions(self, cueChoices) {
 				},
 			]),
 		),
+		pause_toggle: {
+			name: 'Pause / resume',
+			description: 'Pauses everything on screen, or resumes if something is paused — one button for both.',
+			options: [],
+			callback: () => self.send('POST', self.state?.isPaused ? '/resume' : '/pause'),
+		},
+		go_list: {
+			name: 'GO a list that runs on its own',
+			description:
+				'Fires the next cue of an independent list (a foyer loop, stings) without moving the show’s playhead.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'list',
+					label: 'List',
+					choices: lists,
+					default: lists[0]?.id ?? '',
+					allowCustom: true,
+					tooltip: 'Pick a list, or type its name',
+				},
+			],
+			callback: async (action) => {
+				const list = text(action.options.list)
+				if (list) await self.send('POST', `/playlists/${segment(list)}/go`)
+			},
+		},
 		take_over: {
 			name: 'Take over as leader',
 			description:
