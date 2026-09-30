@@ -15,6 +15,7 @@ export function UpdateVariableDefinitions(self) {
 		is_leader: { name: 'Engine is leading (false on a standby)' },
 		missing_assets: { name: 'Missing media files' },
 		unresolvable_assets: { name: 'Media files that can’t be found at all' },
+		missing_devices: { name: 'Devices the show needs that the engine doesn’t have' },
 		stage_message: { name: 'Stage message' },
 		active_look: { name: 'Active look (empty for the show’s own routing)' },
 		announcement_cue: { name: 'Announcement cue number (empty when none)' },
