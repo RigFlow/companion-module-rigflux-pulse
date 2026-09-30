@@ -143,6 +143,7 @@ export default class PulseInstance extends InstanceBase {
 			'cue_next',
 			'standby',
 			'missing_media',
+			'missing_devices',
 			'cleared',
 			'prop_visible',
 			'look_active',

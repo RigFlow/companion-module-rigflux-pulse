@@ -64,6 +64,14 @@ export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [
 			options: [],
 			callback: () => (self.state?.missingAssetCount ?? 0) + (self.state?.unresolvableAssetCount ?? 0) > 0,
 		},
+		missing_devices: {
+			name: 'Engine is missing devices',
+			description: 'A camera, NDI source, display, DeckLink output or MIDI port the show uses isn’t there.',
+			type: 'boolean',
+			defaultStyle: { bgcolor: AMBER, color: BLACK },
+			options: [],
+			callback: () => (self.state?.missingDeviceCount ?? 0) > 0,
+		},
 		cleared: {
 			name: 'Layers are cleared',
 			description: 'On while a clear holds, until the next cue.',

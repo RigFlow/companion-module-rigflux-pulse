@@ -27,7 +27,7 @@ This module needs Companion 4.3 or later.
 
 - **Cue is live** and **Cue is next**, for a cue you pick.
 - **Engine is a standby**: on when this engine is the backup of a redundant pair. A standby turns commands away until it takes over.
-- **Show has missing media**.
+- **Show has missing media**, and **Engine is missing devices** (a camera, NDI source, display, DeckLink output or MIDI port the show uses).
 - **Layers are cleared**: while a clear holds.
 - **Prop is showing**, **Look is active** and **Timer is running**.
 - **Countdown is nearly out, or over**: at a number of seconds you pick.
@@ -40,7 +40,7 @@ This module needs Companion 4.3 or later.
 - `stage_message`, `active_look`, `announcement_cue`, `cleared`.
 - One per timer, as the stage display shows it: `timer_<name>` (for example `timer_sermon`), plus `timer_<name>_seconds`.
 - One per prop: `prop_<name>`, true while it's showing.
-- `is_leader`, `missing_assets`, `unresolvable_assets`.
+- `is_leader`, `missing_assets`, `unresolvable_assets`, `missing_devices`.
 
 Timer and prop variables follow the loaded show. Names are lower-cased with spaces and punctuation turned into `_`.
 
