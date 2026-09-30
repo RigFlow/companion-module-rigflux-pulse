@@ -152,6 +152,30 @@ export function UpdateActions(self, cueChoices) {
 				if (cue) await self.send('POST', `/announcement/${segment(cue)}`)
 			},
 		},
+		clear: {
+			name: 'Clear',
+			description: 'Clears until the next cue, as the clear buttons in Pulse do. All is the panic button.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'what',
+					label: 'Clear',
+					default: 'all',
+					choices: [
+						{ id: 'all', label: 'Everything' },
+						{ id: 'slide', label: 'Slide (text)' },
+						{ id: 'media', label: 'Media (video, images, live inputs)' },
+						{ id: 'audio', label: 'Audio' },
+						{ id: 'props', label: 'Props' },
+						{ id: 'announcement', label: 'Announcement' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const what = text(action.options.what) || 'all'
+				await self.send('POST', what === 'all' ? '/clear' : `/clear/${segment(what)}`)
+			},
+		},
 		announcement_clear: {
 			name: 'Announcement: end',
 			options: [],

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import { once } from 'node:events'
 import { WebSocketServer } from 'ws'
-import { PulseClient, variablesFromState, cueChoices, segment } from '../src/pulse.js'
+import { PulseClient, variablesFromState, cueChoices, segment, slugs, clock, showItems } from '../src/pulse.js'
 
 const TOKEN = 'a'.repeat(64)
 
@@ -195,28 +195,90 @@ test('cues come from every playlist, and a number shared by two is one choice', 
 })
 
 test('variables fill from a state snapshot, with blanks when idle', () => {
-	assert.deepEqual(
-		variablesFromState({
-			showName: 'Sunday',
-			liveCueNumber: '',
-			liveCueName: '',
-			nextCueNumber: '1',
-			nextCueName: 'Walk-in',
-			isLeader: false,
-			missingAssetCount: 2,
-			unresolvableAssetCount: 0,
-		}),
-		{
-			show_name: 'Sunday',
-			live_cue_number: '',
-			live_cue_name: '',
-			next_cue_number: '1',
-			next_cue_name: 'Walk-in',
-			is_leader: false,
-			missing_assets: 2,
-			unresolvable_assets: 0,
-		},
-	)
+	const values = variablesFromState({
+		showName: 'Sunday',
+		liveCueNumber: '',
+		liveCueName: '',
+		nextCueNumber: '1',
+		nextCueName: 'Walk-in',
+		isLeader: false,
+		missingAssetCount: 2,
+		unresolvableAssetCount: 0,
+	})
+	assert.deepEqual(values, {
+		show_name: 'Sunday',
+		live_cue_number: '',
+		live_cue_name: '',
+		next_cue_number: '1',
+		next_cue_name: 'Walk-in',
+		is_leader: false,
+		missing_assets: 2,
+		unresolvable_assets: 0,
+		stage_message: '',
+		active_look: '',
+		announcement_cue: '',
+		cleared: '',
+		live_cue_elapsed: '0:00',
+		live_cue_elapsed_seconds: 0,
+		media_remaining: '0:00',
+		media_remaining_seconds: 0,
+		media_position: '0:00',
+		media_duration: '0:00',
+	})
+})
+
+test('timers, props, clears and clip time become variables', () => {
+	const values = variablesFromState({
+		stageMessage: 'Five minutes',
+		activeLook: 'House only',
+		announcementCueNumber: '90',
+		cleared: ['media', 'slide'],
+		liveCueElapsed: 3725,
+		liveMedia: { position: 30, duration: 120, remaining: 90, remainingDisplay: '1:30' },
+		timers: [
+			{ name: 'Sermon', kind: 'countdown', isRunning: true, seconds: -14, display: '-0:14' },
+			{ name: 'Walk-in', kind: 'countUp', isRunning: false, seconds: 0, display: '0:00' },
+		],
+		props: [
+			{ name: 'Lower third', isVisible: true },
+			{ name: 'Logo', isVisible: false },
+		],
+	})
+	assert.equal(values.stage_message, 'Five minutes')
+	assert.equal(values.active_look, 'House only')
+	assert.equal(values.announcement_cue, '90')
+	assert.equal(values.cleared, 'media, slide')
+	assert.equal(values.live_cue_elapsed, '1:02:05')
+	assert.equal(values.media_remaining, '1:30')
+	assert.equal(values.media_position, '0:30')
+	assert.equal(values.timer_sermon, '-0:14')
+	assert.equal(values.timer_sermon_seconds, -14)
+	assert.equal(values.timer_walk_in, '0:00')
+	assert.equal(values.prop_lower_third, true)
+	assert.equal(values.prop_logo, false)
+})
+
+test('names become variable ids, and a clash gets a number', () => {
+	assert.deepEqual(slugs(['Walk-in loop', 'walk in loop', 'Logo!', '***']), [
+		'walk_in_loop',
+		'walk_in_loop_2',
+		'logo',
+		'item',
+	])
+})
+
+test('clocks read as Pulse’s do, keeping a countdown’s sign', () => {
+	assert.equal(clock(0), '0:00')
+	assert.equal(clock(59.9), '0:59')
+	assert.equal(clock(3725), '1:02:05')
+	assert.equal(clock(-14), '-0:14')
+})
+
+test('an older engine without the new fields still gives every variable', () => {
+	const values = variablesFromState({ showName: 'Old' })
+	assert.equal(values.media_remaining, '0:00')
+	assert.equal(values.cleared, '')
+	assert.deepEqual(showItems({ showName: 'Old' }), { timers: [], props: [] })
 })
 
 test('names with spaces and slashes are one path segment', () => {

@@ -21,22 +21,34 @@ This module needs Companion 4.3 or later.
 - **Prop**: show, hide or toggle a prop by name.
 - **Look**: recall a look by name, or clear it.
 - **Announcement**: run a second cue on the screens it targets, alongside the live cue, and end it.
+- **Clear**: everything (the panic button), or just slide, media, audio, props or the announcement. Layer clears hold until the next cue, as the clear buttons in Pulse do.
 
 ### Feedbacks
 
 - **Cue is live** and **Cue is next**, for a cue you pick.
 - **Engine is a standby**: on when this engine is the backup of a redundant pair. A standby turns commands away until it takes over.
 - **Show has missing media**.
+- **Layers are cleared**: while a clear holds.
+- **Prop is showing**, **Look is active** and **Timer is running**.
+- **Countdown is nearly out, or over**: at a number of seconds you pick.
+- **Live video is ending**: when the live cue's video has that many seconds or fewer left.
 
 ### Variables
 
-`show_name`, `live_cue_number`, `live_cue_name`, `next_cue_number`, `next_cue_name`, `is_leader`, `missing_assets`, `unresolvable_assets`.
+- The show and cues: `show_name`, `live_cue_number`, `live_cue_name`, `next_cue_number`, `next_cue_name`, `live_cue_elapsed`.
+- The live cue's video: `media_remaining`, `media_position`, `media_duration`, and `media_remaining_seconds` for expressions.
+- `stage_message`, `active_look`, `announcement_cue`, `cleared`.
+- One per timer, as the stage display shows it: `timer_<name>` (for example `timer_sermon`), plus `timer_<name>_seconds`.
+- One per prop: `prop_<name>`, true while it's showing.
+- `is_leader`, `missing_assets`, `unresolvable_assets`.
+
+Timer and prop variables follow the loaded show. Names are lower-cased with spaces and punctuation turned into `_`.
 
 ### Presets
 
-GO, Back, live and next cue displays, clear buttons, and a button for every cue in the loaded show, red while it's live and green while it's next. The cue buttons follow the show: load another show and they change with it.
+GO and Back; live cue, next cue, time-left and elapsed displays; a red **CLEAR ALL** panic button and clears that light while they hold; a display for every timer (red once a countdown runs out) and a toggle for every prop; and a button for every cue in the loaded show, red while it's live and green while it's next. The cue buttons follow the show: load another show and they change with it.
 
 ### Notes
 
 - The control API is plain HTTP on your show network. Keep it on a network you trust.
-- Pulse has no stop-everything command over the API yet, so this module has none either.
+- Clear, and the timer, prop, look and clip-time feedback, need a Pulse engine with those in its control API. On an older engine those buttons and variables stay empty.
