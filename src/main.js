@@ -4,7 +4,7 @@ import { UpdateActions } from './actions.js'
 import { UpdateFeedbacks } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
 import { UpdateVariableDefinitions } from './variables.js'
-import { PulseClient, variablesFromState, cueChoices } from './pulse.js'
+import { PulseClient, variablesFromState, cueChoices, showItems } from './pulse.js'
 
 export { UpgradeScripts }
 
@@ -26,6 +26,8 @@ export default class PulseInstance extends InstanceBase {
 		this.state = null
 		this.cues = []
 		this.client = null
+		/** The timer and prop names last defined, to see when they change. */
+		this.itemsKey = ''
 	}
 
 	async init(config, _isFirstInit, secrets) {
@@ -127,7 +129,27 @@ export default class PulseInstance extends InstanceBase {
 				? variablesFromState(state)
 				: variablesFromState({ isLeader: false, missingAssetCount: 0, unresolvableAssetCount: 0 }),
 		)
-		this.checkFeedbacks('cue_live', 'cue_next', 'standby', 'missing_media')
+		// Timers and props come in every frame; when the set of them changes
+		// (a show loaded or edited), their variables, choices and presets do.
+		const items = JSON.stringify(showItems(state), ['timers', 'props', 'name'])
+		if (items !== this.itemsKey) {
+			this.itemsKey = items
+			UpdateVariableDefinitions(this)
+			this.updateDefinitions()
+			this.setVariableValues(state ? variablesFromState(state) : {})
+		}
+		this.checkFeedbacks(
+			'cue_live',
+			'cue_next',
+			'standby',
+			'missing_media',
+			'cleared',
+			'prop_visible',
+			'look_active',
+			'timer_running',
+			'timer_over',
+			'media_ending',
+		)
 		// The feed carries no cue list, and a show can be edited or swapped
 		// under us. A cue that isn't in the list we know means it changed.
 		if (!state) return
@@ -151,9 +173,10 @@ export default class PulseInstance extends InstanceBase {
 
 	updateDefinitions() {
 		const choices = cueChoices(this.cues)
+		const items = showItems(this.state)
 		UpdateActions(this, choices)
-		UpdateFeedbacks(this, choices)
-		UpdatePresets(this, this.cues)
+		UpdateFeedbacks(this, choices, items)
+		UpdatePresets(this, this.cues, items)
 	}
 
 	/** Sends a command, reporting a refusal in the log rather than throwing. */

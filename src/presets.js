@@ -18,8 +18,24 @@ function button(name, text, actionId, options = {}, extra = {}) {
 	}
 }
 
-/** @param {import('./main.js').default} self */
-export function UpdatePresets(self, cues) {
+/** A clear for one layer class, amber while the clear holds. */
+function clearButton(what, label) {
+	return button(
+		`Clear ${what}`,
+		`CLEAR\n${label}`,
+		'clear',
+		{ what },
+		{
+			feedbacks: [{ feedbackId: 'cleared', options: { what }, style: { bgcolor: AMBER, color: BLACK } }],
+		},
+	)
+}
+
+/**
+ * @param {import('./main.js').default} self
+ * @param {{ timers: { id: string, name: string }[], props: { id: string, name: string }[] }} items
+ */
+export function UpdatePresets(self, cues, items = { timers: [], props: [] }) {
 	const v = (name) => `$(${self.label}:${name})`
 	/** @type {import('@companion-module/base').CompanionPresetDefinitions<import('./main.js').PulseSchema>} */
 	const presets = {
@@ -40,6 +56,53 @@ export function UpdatePresets(self, cues) {
 		stage_clear: button('Clear stage message', 'CLEAR\nMSG', 'stage_message_clear'),
 		look_clear: button('Clear look', 'CLEAR\nLOOK', 'look_clear'),
 		announcement_clear: button('End announcement', 'END\nANNOUNCE', 'announcement_clear'),
+		clear_all: button('Clear everything (panic)', 'CLEAR\nALL', 'clear', { what: 'all' }, { bgcolor: RED }),
+		clear_slide: clearButton('slide', 'SLIDE'),
+		clear_media: clearButton('media', 'MEDIA'),
+		clear_audio: clearButton('audio', 'AUDIO'),
+		time_left: button(
+			'Time left on the live video',
+			`LEFT\n${v('media_remaining')}`,
+			null,
+			{},
+			{
+				feedbacks: [{ feedbackId: 'media_ending', options: { seconds: 10 }, style: { bgcolor: RED, color: WHITE } }],
+			},
+		),
+		elapsed: button('Time since the live cue fired', `CUE\n${v('live_cue_elapsed')}`, null),
+	}
+
+	// A display per timer — red once a countdown runs out — and a toggle per
+	// prop, green while it's showing.
+	for (const timer of items.timers) {
+		presets[`timer_${timer.id}`] = button(
+			timer.name,
+			`${timer.name}\n${v(`timer_${timer.id}`)}`,
+			null,
+			{},
+			{
+				feedbacks: [
+					{
+						feedbackId: 'timer_over',
+						options: { timer: timer.name, seconds: 0 },
+						style: { bgcolor: RED, color: WHITE },
+					},
+				],
+			},
+		)
+	}
+	for (const prop of items.props) {
+		presets[`prop_${prop.id}`] = button(
+			prop.name,
+			prop.name,
+			'prop',
+			{ name: prop.name, command: 'toggle' },
+			{
+				feedbacks: [
+					{ feedbackId: 'prop_visible', options: { prop: prop.name }, style: { bgcolor: GREEN, color: WHITE } },
+				],
+			},
+		)
 	}
 
 	// A button per cue in the loaded show, red while it's live and green
@@ -79,11 +142,55 @@ export function UpdatePresets(self, cues) {
 					type: 'simple',
 					name: 'Status',
 					description: 'Displays; pressing them does nothing.',
-					presets: ['live', 'next'],
+					presets: ['live', 'next', 'time_left', 'elapsed'],
 				},
-				{ id: 'clear', type: 'simple', name: 'Clear', presets: ['stage_clear', 'look_clear', 'announcement_clear'] },
+				{
+					id: 'clear',
+					type: 'simple',
+					name: 'Clear',
+					description: 'Layer clears hold until the next cue, and light while they do.',
+					presets: [
+						'clear_all',
+						'clear_slide',
+						'clear_media',
+						'clear_audio',
+						'stage_clear',
+						'look_clear',
+						'announcement_clear',
+					],
+				},
 			],
 		},
+		...(items.timers.length + items.props.length === 0
+			? []
+			: [
+					{
+						id: 'show_items',
+						name: 'Timers and props',
+						definitions: [
+							...(items.timers.length
+								? [
+										{
+											id: 'timers',
+											type: /** @type {const} */ ('simple'),
+											name: 'Timers',
+											presets: items.timers.map((t) => `timer_${t.id}`),
+										},
+									]
+								: []),
+							...(items.props.length
+								? [
+										{
+											id: 'props',
+											type: /** @type {const} */ ('simple'),
+											name: 'Props',
+											presets: items.props.map((p) => `prop_${p.id}`),
+										},
+									]
+								: []),
+						],
+					},
+				]),
 		// A section with nothing in it until a show is loaded would only be noise.
 		...(playlists.size === 0
 			? []
