@@ -227,6 +227,9 @@ test('variables fill from a state snapshot, with blanks when idle', () => {
 		missing_devices: 0,
 		live_cue_type: '',
 		next_cue_type: '',
+		is_paused: false,
+		live_cue_notes: '',
+		next_cue_notes: '',
 	})
 })
 
@@ -261,6 +264,24 @@ test('timers, props, clears and clip time become variables', () => {
 	assert.equal(values.prop_logo, false)
 })
 
+test('pause, notes and independent lists become variables', () => {
+	const values = variablesFromState({
+		isPaused: true,
+		liveCueNotes: 'Wait for the band',
+		nextCueNotes: 'Pastor to lectern',
+		independentLists: [{ name: 'Foyer loop', liveCueNumber: 'F2', liveCueName: 'Coffee' }],
+	})
+	assert.equal(values.is_paused, true)
+	assert.equal(values.live_cue_notes, 'Wait for the band')
+	assert.equal(values.next_cue_notes, 'Pastor to lectern')
+	assert.equal(values.list_foyer_loop_cue, 'F2')
+	assert.equal(values.list_foyer_loop_cue_name, 'Coffee')
+	assert.deepEqual(
+		showItems({ independentLists: [{ name: 'Foyer loop' }] }).lists.map((l) => l.id),
+		['foyer_loop'],
+	)
+})
+
 test('names become variable ids, and a clash gets a number', () => {
 	assert.deepEqual(slugs(['Walk-in loop', 'walk in loop', 'Logo!', '***']), [
 		'walk_in_loop',
@@ -281,7 +302,9 @@ test('an older engine without the new fields still gives every variable', () => 
 	const values = variablesFromState({ showName: 'Old' })
 	assert.equal(values.media_remaining, '0:00')
 	assert.equal(values.cleared, '')
-	assert.deepEqual(showItems({ showName: 'Old' }), { timers: [], props: [] })
+	assert.deepEqual(showItems({ showName: 'Old' }), { timers: [], props: [], lists: [] })
+	assert.equal(values.is_paused, false)
+	assert.equal(values.live_cue_notes, '')
 })
 
 test('names with spaces and slashes are one path segment', () => {

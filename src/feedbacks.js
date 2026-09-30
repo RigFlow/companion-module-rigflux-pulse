@@ -8,9 +8,9 @@ const BLACK = combineRgb(0, 0, 0)
 
 /**
  * @param {import('./main.js').default} self
- * @param {{ timers: { name: string }[], props: { name: string }[] }} items
+ * @param {{ timers: { name: string }[], props: { name: string }[], lists?: { name: string }[] }} items
  */
-export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [] }) {
+export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [], lists: [] }) {
 	/** @returns {import('@companion-module/base').CompanionInputFieldDropdown} */
 	const nameOption = (id, label, names) => ({
 		type: 'dropdown',
@@ -47,6 +47,76 @@ export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [
 			defaultStyle: { bgcolor: GREEN, color: WHITE },
 			options: [cueOption],
 			callback: (feedback) => !!self.state?.nextCueNumber && self.state.nextCueNumber === String(feedback.options.cue),
+		},
+		paused: {
+			name: 'Something is paused',
+			description: 'On while a Pause has frozen video, sound or a timeline on screen.',
+			type: 'boolean',
+			defaultStyle: { bgcolor: AMBER, color: BLACK },
+			options: [],
+			callback: () => self.state?.isPaused === true,
+		},
+		cue_type: {
+			name: 'Live or next cue is a kind',
+			description:
+				'On when the live (or next) cue is, say, a fade or a stop — so a GO button can warn before it blacks out.',
+			type: 'boolean',
+			defaultStyle: { bgcolor: AMBER, color: BLACK },
+			options: [
+				{
+					type: 'dropdown',
+					id: 'which',
+					label: 'Cue',
+					default: 'next',
+					choices: [
+						{ id: 'live', label: 'Live cue' },
+						{ id: 'next', label: 'Next cue' },
+					],
+				},
+				{
+					type: 'dropdown',
+					id: 'type',
+					label: 'Kind',
+					default: 'stop',
+					choices: [
+						'look',
+						'timeline',
+						'fade',
+						'group',
+						'wait',
+						'memo',
+						'stop',
+						'pause',
+						'resume',
+						'goto',
+						'start',
+					].map((id) => ({ id, label: id })),
+				},
+			],
+			callback: (feedback) => {
+				const type = feedback.options.which === 'live' ? self.state?.liveCueType : self.state?.nextCueType
+				return !!type && type === String(feedback.options.type)
+			},
+		},
+		list_cue_live: {
+			name: 'List’s cue is live',
+			description: 'For lists that run on their own: on while that list is on this cue (or on any cue, left empty).',
+			type: 'boolean',
+			defaultStyle: { bgcolor: RED, color: WHITE },
+			options: [
+				nameOption(
+					'list',
+					'List',
+					(items.lists ?? []).map((l) => l.name),
+				),
+				{ type: 'textinput', id: 'cue', label: 'Cue number (empty for any)', default: '' },
+			],
+			callback: (feedback) => {
+				const list = self.state?.independentLists?.find((l) => l.name === String(feedback.options.list))
+				if (!list || !list.liveCueNumber) return false
+				const cue = String(feedback.options.cue ?? '').trim()
+				return cue === '' || list.liveCueNumber === cue
+			},
 		},
 		standby: {
 			name: 'Engine is a standby',
