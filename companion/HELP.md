@@ -21,6 +21,8 @@ This module needs Companion 4.3 or later.
 - **Prop**: show, hide or toggle a prop by name.
 - **Look**: recall a look by name, or clear it.
 - **Announcement**: run a second cue on the screens it targets, alongside the live cue, and end it.
+- **Stop**, **Pause** and **Resume**: a cue, or everything on screen. Pause freezes video and sound too.
+- **Take over as leader**: on a backup engine, become the leader — for a pair, whose backup never takes over by itself.
 - **Clear**: everything (the panic button), or just slide, media, audio, props or the announcement. Layer clears hold until the next cue, as the clear buttons in Pulse do.
 
 ### Feedbacks
@@ -41,6 +43,7 @@ This module needs Companion 4.3 or later.
 - One per timer, as the stage display shows it: `timer_<name>` (for example `timer_sermon`), plus `timer_<name>_seconds`.
 - One per prop: `prop_<name>`, true while it's showing.
 - `is_leader`, `missing_assets`, `unresolvable_assets`, `missing_devices`.
+- `live_cue_type` and `next_cue_type`: look, timeline, fade, group, wait, memo, stop, pause, resume or goto — so a GO button can say what's coming.
 
 Timer and prop variables follow the loaded show. Names are lower-cased with spaces and punctuation turned into `_`.
 
