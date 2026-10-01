@@ -4,7 +4,7 @@
 	"id": "rigflux-pulse",
 	"name": "rigflux-pulse",
 	"shortname": "pulse",
-	"description": "Run cues, stage messages, timers and looks on a RigFlux Pulse media server, with live cue feedback",
+	"description": "Run cues, stage messages, timers, looks, target set clears and stage layouts on a RigFlux Pulse media server, with live cue feedback",
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/RigFlow/companion-module-rigflux-pulse.git",

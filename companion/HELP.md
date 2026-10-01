@@ -26,6 +26,8 @@ This module needs Companion 4.3 or later.
 - **GO a list that runs on its own**: fires the next cue of an independent list (a foyer loop, stings) without moving the show's playhead.
 - **Take over as leader**: on a backup engine, become the leader — for a pair, whose backup never takes over by itself.
 - **Clear**: everything (the panic button), or just slide, media, audio, props or the announcement. Layer clears hold until the next cue, as the clear buttons in Pulse do.
+- **Clear a target set's background or foreground**: one plane of one target set — the side wall's slide, say — until a cue puts something on it again. The main screen is left alone, and props stay.
+- **Stage layout: switch**: puts a stage screen on another stage layout live, as ProPresenter's Screens menu does. Name the stage screen, or leave it empty to switch every stage screen. Pick the layout from the show's, or type its name.
 
 ### Feedbacks
 
@@ -58,7 +60,14 @@ Timer and prop variables follow the loaded show. Names are lower-cased with spac
 
 A **Show state** page that mirrors the show with no setup: on screen (amber while paused, or on a standby), up next (amber before a Stop), GO, pause/resume, time left, and media problems — plus a GO and a display for each list that runs on its own. Then GO and Back; live cue, next cue, time-left and elapsed displays; a red **CLEAR ALL** panic button and clears that light while they hold; a display for every timer (red once a countdown runs out) and a toggle for every prop; and a button for every cue in the loaded show, red while it's live and green while it's next. The cue buttons follow the show: load another show and they change with it.
 
+**Target sets and stage**: a slide (foreground) and media (background) clear for every target set, and a button per stage layout that switches every stage screen to it. These follow the show too.
+
+### Stage view in a browser
+
+Pulse also shows any stage layout full screen in a browser, at `http://<engine>:<port>/stage` on the same port as the control API. That's a page, not a Companion feature: open it on a tablet or laptop, or scan the Stage view code in Pulse Settings.
+
 ### Notes
 
 - The control API is plain HTTP on your show network. Keep it on a network you trust.
 - Clear, and the timer, prop, look and clip-time feedback, need a Pulse engine with those in its control API. On an older engine those buttons and variables stay empty.
+- Clearing one target set's plane and switching stage layouts need a Pulse engine with target sets and stage layouts. On an older engine the layout list is empty and those actions are refused, which shows in the log.

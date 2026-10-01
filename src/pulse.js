@@ -77,6 +77,20 @@ export class PulseClient extends EventEmitter {
 	}
 
 	/**
+	 * The show's stage layouts, by name. An engine from before stage
+	 * layouts answers 404, which is no layouts rather than an error.
+	 */
+	async stageLayouts() {
+		try {
+			const body = await this.request('GET', '/stage/layouts')
+			return (body?.layouts ?? []).map((layout) => layout.name).filter(Boolean)
+		} catch (e) {
+			if (e.status === 404) return []
+			throw e
+		}
+	}
+
+	/**
 	 * Opens the state feed, reconnecting until `close()`. Emits `state`
 	 * with each snapshot, `connected` / `disconnected`, and `unauthorized`
 	 * when the engine turns the token away (it doesn't retry then — a
@@ -167,19 +181,40 @@ export function clock(seconds) {
 	return h > 0 ? `${sign}${h}:${String(m).padStart(2, '0')}:${s}` : `${sign}${m}:${s}`
 }
 
-/** The show's timers, props and independent lists, each with the id its variables use. */
+/**
+ * The show's timers, props, independent lists and target sets, each with
+ * the id its variables and presets use. Target sets come from the state's
+ * `canvases` — Pulse's name for them underneath.
+ */
 export function showItems(state) {
 	const timers = state?.timers ?? []
 	const props = state?.props ?? []
 	const lists = state?.independentLists ?? []
+	const sets = state?.canvases ?? []
 	const timerIDs = slugs(timers.map((t) => t.name))
 	const propIDs = slugs(props.map((p) => p.name))
 	const listIDs = slugs(lists.map((l) => l.name))
+	const setIDs = slugs(sets)
 	return {
 		timers: timers.map((timer, i) => ({ ...timer, id: timerIDs[i] })),
 		props: props.map((prop, i) => ({ ...prop, id: propIDs[i] })),
 		lists: lists.map((list, i) => ({ ...list, id: listIDs[i] })),
+		targetSets: sets.map((name, i) => ({ name, id: setIDs[i] })),
 	}
+}
+
+/** A clear for one plane of one target set: `POST /targetsets/{name}/{plane}/clear`. */
+export function planeClearPath(targetSet, plane) {
+	return `/targetsets/${segment(targetSet)}/${plane === 'background' ? 'background' : 'foreground'}/clear`
+}
+
+/**
+ * A stage layout switch: one stage screen by name, or every stage screen
+ * when the name is empty.
+ */
+export function stageLayoutPath(screen, layout) {
+	const name = String(screen ?? '').trim()
+	return name ? `/stage/${segment(name)}/layout/${segment(layout)}` : `/stage/layout/${segment(layout)}`
 }
 
 /** Companion variable values for a state snapshot. */
