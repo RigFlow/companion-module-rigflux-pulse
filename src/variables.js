@@ -32,7 +32,14 @@ export function UpdateVariableDefinitions(self) {
 		live_cue_notes: { name: 'Live cue’s notes' },
 		next_cue_notes: { name: 'Next cue’s notes' },
 	}
-	const { timers, props, lists } = showItems(self.state)
+	const { timers, props, lists, targetSets, stageScreens } = showItems(self.state)
+	for (const set of targetSets) {
+		definitions[`set_${set.id}_fg_cue`] = { name: `Target set “${set.name}”: cue on its foreground` }
+		definitions[`set_${set.id}_bg_cue`] = { name: `Target set “${set.name}”: cue on its background` }
+	}
+	for (const screen of stageScreens) {
+		definitions[`stage_${screen.id}_layout`] = { name: `Stage screen “${screen.name}”: its layout` }
+	}
 	for (const list of lists) {
 		definitions[`list_${list.id}_cue`] = { name: `List “${list.name}”: its cue number` }
 		definitions[`list_${list.id}_cue_name`] = { name: `List “${list.name}”: its cue name` }

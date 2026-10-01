@@ -133,7 +133,7 @@ export default class PulseInstance extends InstanceBase {
 		)
 		// Timers and props come in every frame; when the set of them changes
 		// (a show loaded or edited), their variables, choices and presets do.
-		const items = JSON.stringify(showItems(state), ['timers', 'props', 'lists', 'targetSets', 'name'])
+		const items = JSON.stringify(showItems(state), ['timers', 'props', 'lists', 'targetSets', 'stageScreens', 'name'])
 		if (items !== this.itemsKey) {
 			this.itemsKey = items
 			UpdateVariableDefinitions(this)
@@ -155,6 +155,10 @@ export default class PulseInstance extends InstanceBase {
 			'timer_running',
 			'timer_over',
 			'media_ending',
+			'plane_showing',
+			'plane_cleared',
+			'plane_hidden',
+			'stage_layout_showing',
 		)
 		// The feed carries no cue list, and a show can be edited or swapped
 		// under us. A cue that isn't in the list we know means it changed.
@@ -186,7 +190,7 @@ export default class PulseInstance extends InstanceBase {
 		const choices = cueChoices(this.cues)
 		const items = showItems(this.state)
 		UpdateActions(this, choices, items, this.stageLayouts)
-		UpdateFeedbacks(this, choices, items)
+		UpdateFeedbacks(this, choices, items, this.stageLayouts)
 		UpdatePresets(this, this.cues, items, this.stageLayouts)
 	}
 

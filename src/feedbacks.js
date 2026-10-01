@@ -1,4 +1,5 @@
 import { combineRgb } from '@companion-module/base'
+import { planeState, stageLayoutShowing } from './pulse.js'
 
 const RED = combineRgb(204, 0, 0)
 const AMBER = combineRgb(230, 150, 0)
@@ -7,10 +8,65 @@ const WHITE = combineRgb(255, 255, 255)
 const BLACK = combineRgb(0, 0, 0)
 
 /**
+ * Feedbacks about one plane of one target set: something on it, cleared,
+ * or partly hidden by another set's solid cue.
  * @param {import('./main.js').default} self
- * @param {{ timers: { name: string }[], props: { name: string }[], lists?: { name: string }[] }} items
  */
-export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [], lists: [] }) {
+function planeFeedbacks(self, items, nameOption) {
+	const options = [
+		nameOption(
+			'set',
+			'Target set',
+			(items.targetSets ?? []).map((s) => s.name),
+		),
+		{
+			type: /** @type {const} */ ('dropdown'),
+			id: 'plane',
+			label: 'Plane',
+			default: 'foreground',
+			choices: [
+				{ id: 'foreground', label: 'Foreground (slides)' },
+				{ id: 'background', label: 'Background (media)' },
+			],
+		},
+	]
+	const plane = (feedback) => planeState(self.state, feedback.options.set, feedback.options.plane)
+	return {
+		plane_showing: {
+			name: 'Target set plane has something on it',
+			description:
+				'On while a target set’s foreground (or background) shows a cue’s layers — so its clear button can light.',
+			type: /** @type {const} */ ('boolean'),
+			defaultStyle: { bgcolor: GREEN, color: WHITE },
+			options,
+			callback: (feedback) => plane(feedback)?.isShowing === true,
+		},
+		plane_cleared: {
+			name: 'Target set plane is cleared',
+			description:
+				'On while a target set’s plane is cleared — by a clear, or by being covered on every slice — until a cue puts something on it.',
+			type: /** @type {const} */ ('boolean'),
+			defaultStyle: { bgcolor: AMBER, color: BLACK },
+			options,
+			callback: (feedback) => plane(feedback)?.isCleared === true,
+		},
+		plane_hidden: {
+			name: 'Target set plane is partly hidden',
+			description: 'On while another set’s solid cue covers some of this plane’s slices, so they’ve been cleared.',
+			type: /** @type {const} */ ('boolean'),
+			defaultStyle: { bgcolor: AMBER, color: BLACK },
+			options,
+			callback: (feedback) => (plane(feedback)?.hiddenSlices ?? 0) > 0,
+		},
+	}
+}
+
+/**
+ * @param {import('./main.js').default} self
+ * @param {{ timers: { name: string }[], props: { name: string }[], lists?: { name: string }[], targetSets?: { name: string }[], stageScreens?: { name: string }[] }} items
+ * @param {string[]} stageLayouts
+ */
+export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [], lists: [] }, stageLayouts = []) {
 	/** @returns {import('@companion-module/base').CompanionInputFieldDropdown} */
 	const nameOption = (id, label, names) => ({
 		type: 'dropdown',
@@ -218,6 +274,28 @@ export function UpdateFeedbacks(self, cueChoices, items = { timers: [], props: [
 				const timer = timerNamed(feedback.options.timer)
 				return !!timer && timer.kind !== 'countUp' && timer.seconds <= Number(feedback.options.seconds)
 			},
+		},
+		...planeFeedbacks(self, items, nameOption),
+		stage_layout_showing: {
+			name: 'Stage screen is showing a layout',
+			description: 'On while that stage screen — or, left empty, any stage screen — shows the layout.',
+			type: 'boolean',
+			defaultStyle: { bgcolor: GREEN, color: WHITE },
+			options: [
+				{
+					type: 'dropdown',
+					id: 'screen',
+					label: 'Stage screen',
+					choices: [
+						{ id: '', label: 'Any stage screen' },
+						...(items.stageScreens ?? []).map((s) => ({ id: s.name, label: s.name })),
+					],
+					default: '',
+					allowCustom: true,
+				},
+				nameOption('layout', 'Stage layout', stageLayouts),
+			],
+			callback: (feedback) => stageLayoutShowing(self.state, feedback.options.screen, feedback.options.layout),
 		},
 		media_ending: {
 			name: 'Live video is ending',

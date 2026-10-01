@@ -18,6 +18,8 @@ import {
 	showItems,
 	planeClearPath,
 	stageLayoutPath,
+	planeState,
+	stageLayoutShowing,
 } from '../src/pulse.js'
 
 const TOKEN = 'a'.repeat(64)
@@ -321,7 +323,13 @@ test('an older engine without the new fields still gives every variable', () => 
 	const values = variablesFromState({ showName: 'Old' })
 	assert.equal(values.media_remaining, '0:00')
 	assert.equal(values.cleared, '')
-	assert.deepEqual(showItems({ showName: 'Old' }), { timers: [], props: [], lists: [], targetSets: [] })
+	assert.deepEqual(showItems({ showName: 'Old' }), {
+		timers: [],
+		props: [],
+		lists: [],
+		targetSets: [],
+		stageScreens: [],
+	})
 	assert.equal(values.is_paused, false)
 	assert.equal(values.live_cue_notes, '')
 })
@@ -395,4 +403,74 @@ test('the plane clear and layout switch actions send what they say', async () =>
 		'POST /stage/layout/Speaker',
 		'POST /stage/Wedge/layout/Band',
 	])
+})
+
+/** What a Pulse engine with target sets and stage screens reports. */
+const planesState = {
+	canvases: ['Main', 'Side wall'],
+	targetSets: [
+		{
+			name: 'Main',
+			foreground: { isShowing: true, isCleared: false, cueNumber: '4', cueName: 'Verse', hiddenSlices: 0 },
+			background: { isShowing: false, isCleared: true, cueNumber: '2', cueName: 'Walk-in', hiddenSlices: 0 },
+		},
+		{
+			name: 'Side wall',
+			foreground: { isShowing: false, isCleared: false, cueNumber: '', cueName: '', hiddenSlices: 0 },
+			background: { isShowing: true, isCleared: false, cueNumber: '7', cueName: 'Loop', hiddenSlices: 1 },
+		},
+	],
+	stageScreens: [
+		{ name: 'Wedge L', layout: 'Band' },
+		{ name: 'Wedge R', layout: 'Speaker' },
+	],
+}
+
+test('a plane reads what the engine reports, and nothing for a set it doesn’t know', () => {
+	assert.equal(planeState(planesState, 'Main', 'foreground').isShowing, true)
+	assert.equal(planeState(planesState, ' Main ', 'background').isCleared, true)
+	assert.equal(planeState(planesState, 'Side wall', 'background').hiddenSlices, 1)
+	assert.equal(planeState(planesState, 'Lobby', 'foreground'), null)
+	assert.equal(planeState({ canvases: ['Main'] }, 'Main', 'foreground'), null, 'an older engine can’t say')
+})
+
+test('a stage layout is showing on a named screen, or on any', () => {
+	assert.equal(stageLayoutShowing(planesState, 'Wedge L', 'Band'), true)
+	assert.equal(stageLayoutShowing(planesState, 'Wedge L', 'Speaker'), false)
+	assert.equal(stageLayoutShowing(planesState, '', 'Speaker'), true)
+	assert.equal(stageLayoutShowing(planesState, '', ''), false)
+	assert.equal(stageLayoutShowing({}, '', 'Band'), false)
+})
+
+test('target set cues and stage screen layouts become variables', () => {
+	const values = variablesFromState(planesState)
+	assert.equal(values.set_main_fg_cue, '4')
+	assert.equal(values.set_main_bg_cue, '2')
+	assert.equal(values.set_side_wall_bg_cue, '7')
+	assert.equal(values.set_side_wall_fg_cue, '')
+	assert.equal(values.stage_wedge_l_layout, 'Band')
+	assert.equal(values.stage_wedge_r_layout, 'Speaker')
+})
+
+test('the plane and stage layout feedbacks follow the state', async () => {
+	const { UpdateFeedbacks } = await import('../src/feedbacks.js')
+	const self = {
+		state: planesState,
+		setFeedbackDefinitions(definitions) {
+			this.feedbacks = definitions
+		},
+	}
+	UpdateFeedbacks(self, [], { timers: [], props: [], ...showItems(planesState) }, ['Band', 'Speaker'])
+	const check = (id, options) => self.feedbacks[id].callback({ options })
+	assert.equal(check('plane_showing', { set: 'Main', plane: 'foreground' }), true)
+	assert.equal(check('plane_showing', { set: 'Main', plane: 'background' }), false)
+	assert.equal(check('plane_cleared', { set: 'Main', plane: 'background' }), true)
+	assert.equal(check('plane_hidden', { set: 'Side wall', plane: 'background' }), true)
+	assert.equal(check('plane_hidden', { set: 'Main', plane: 'foreground' }), false)
+	assert.equal(check('stage_layout_showing', { screen: 'Wedge R', layout: 'Speaker' }), true)
+	assert.equal(check('stage_layout_showing', { screen: '', layout: 'Band' }), true)
+	assert.deepEqual(
+		self.feedbacks.stage_layout_showing.options[0].choices.map((c) => c.id),
+		['', 'Wedge L', 'Wedge R'],
+	)
 })

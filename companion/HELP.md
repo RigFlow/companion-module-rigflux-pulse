@@ -41,6 +41,8 @@ This module needs Companion 4.3 or later.
 - **Prop is showing**, **Look is active** and **Timer is running**.
 - **Countdown is nearly out, or over**: at a number of seconds you pick.
 - **Live video is ending**: when the live cue's video has that many seconds or fewer left.
+- **Target set plane has something on it**, **is cleared**, and **is partly hidden**: for one target set's foreground (slides) or background (media). Partly hidden means another set's solid cue covers some of its slices, so Pulse has cleared those.
+- **Stage screen is showing a layout**: for one stage screen, or any.
 
 ### Variables
 
@@ -53,14 +55,16 @@ This module needs Companion 4.3 or later.
 - `live_cue_type` and `next_cue_type`: look, timeline, fade, group, wait, memo, stop, pause, resume, goto or start — so a GO button can say what's coming.
 - `live_cue_notes` and `next_cue_notes`: what the operator wrote on the cue. `is_paused`.
 - One pair per list that runs on its own: `list_<name>_cue` and `list_<name>_cue_name`.
+- One pair per target set: `set_<name>_fg_cue` and `set_<name>_bg_cue`, the cue on its foreground and background.
+- One per stage screen: `stage_<screen>_layout`, the layout it's showing.
 
-Timer and prop variables follow the loaded show. Names are lower-cased with spaces and punctuation turned into `_`.
+Timer, prop, target set and stage screen variables follow the loaded show. Names are lower-cased with spaces and punctuation turned into `_`.
 
 ### Presets
 
 A **Show state** page that mirrors the show with no setup: on screen (amber while paused, or on a standby), up next (amber before a Stop), GO, pause/resume, time left, and media problems — plus a GO and a display for each list that runs on its own. Then GO and Back; live cue, next cue, time-left and elapsed displays; a red **CLEAR ALL** panic button and clears that light while they hold; a display for every timer (red once a countdown runs out) and a toggle for every prop; and a button for every cue in the loaded show, red while it's live and green while it's next. The cue buttons follow the show: load another show and they change with it.
 
-**Target sets and stage**: a slide (foreground) and media (background) clear for every target set, and a button per stage layout that switches every stage screen to it. These follow the show too.
+**Target sets and stage**: a slide (foreground) and media (background) clear for every target set — green while there's something to clear, amber once it's cleared — and a button per stage layout that switches every stage screen to it, green while a stage screen shows it. These follow the show too.
 
 ### Stage view in a browser
 
@@ -70,4 +74,4 @@ Pulse also shows any stage layout full screen in a browser, at `http://<engine>:
 
 - The control API is plain HTTP on your show network. Keep it on a network you trust.
 - Clear, and the timer, prop, look and clip-time feedback, need a Pulse engine with those in its control API. On an older engine those buttons and variables stay empty.
-- Clearing one target set's plane and switching stage layouts need a Pulse engine with target sets and stage layouts. On an older engine the layout list is empty and those actions are refused, which shows in the log.
+- Clearing one target set's plane and switching stage layouts need a Pulse engine with target sets and stage layouts, and their feedback and variables need one that reports them in its state. On an older engine the layout list is empty, those actions are refused (which shows in the log), and their feedback stays off.

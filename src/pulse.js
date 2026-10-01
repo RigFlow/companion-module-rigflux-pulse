@@ -190,17 +190,41 @@ export function showItems(state) {
 	const timers = state?.timers ?? []
 	const props = state?.props ?? []
 	const lists = state?.independentLists ?? []
-	const sets = state?.canvases ?? []
+	// A newer engine reports each set with its planes; an older one only
+	// names them.
+	const sets = state?.targetSets?.map((s) => s.name) ?? state?.canvases ?? []
+	const screens = state?.stageScreens ?? []
 	const timerIDs = slugs(timers.map((t) => t.name))
 	const propIDs = slugs(props.map((p) => p.name))
 	const listIDs = slugs(lists.map((l) => l.name))
 	const setIDs = slugs(sets)
+	const screenIDs = slugs(screens.map((s) => s.name))
 	return {
 		timers: timers.map((timer, i) => ({ ...timer, id: timerIDs[i] })),
 		props: props.map((prop, i) => ({ ...prop, id: propIDs[i] })),
 		lists: lists.map((list, i) => ({ ...list, id: listIDs[i] })),
 		targetSets: sets.map((name, i) => ({ name, id: setIDs[i] })),
+		stageScreens: screens.map((screen, i) => ({ ...screen, id: screenIDs[i] })),
 	}
+}
+
+/**
+ * One plane of one target set as the engine last reported it, or null —
+ * for no such set, or an engine too old to say.
+ * @returns {{ isShowing: boolean, isCleared: boolean, cueNumber: string, cueName: string, hiddenSlices: number } | null}
+ */
+export function planeState(state, targetSet, plane) {
+	const set = state?.targetSets?.find((s) => s.name === String(targetSet ?? '').trim())
+	if (!set) return null
+	return (plane === 'background' ? set.background : set.foreground) ?? null
+}
+
+/** Whether `screen` — or, named empty, any stage screen — is showing `layout`. */
+export function stageLayoutShowing(state, screen, layout) {
+	const name = String(screen ?? '').trim()
+	const wanted = String(layout ?? '').trim()
+	if (!wanted) return false
+	return (state?.stageScreens ?? []).some((s) => (name === '' || s.name === name) && s.layout === wanted)
 }
 
 /** A clear for one plane of one target set: `POST /targetsets/{name}/{plane}/clear`. */
@@ -246,7 +270,12 @@ export function variablesFromState(state) {
 		live_cue_notes: state.liveCueNotes ?? '',
 		next_cue_notes: state.nextCueNotes ?? '',
 	}
-	const { timers, props, lists } = showItems(state)
+	const { timers, props, lists, targetSets, stageScreens } = showItems(state)
+	for (const set of targetSets) {
+		values[`set_${set.id}_fg_cue`] = planeState(state, set.name, 'foreground')?.cueNumber ?? ''
+		values[`set_${set.id}_bg_cue`] = planeState(state, set.name, 'background')?.cueNumber ?? ''
+	}
+	for (const screen of stageScreens) values[`stage_${screen.id}_layout`] = screen.layout ?? ''
 	for (const list of lists) {
 		values[`list_${list.id}_cue`] = list.liveCueNumber ?? ''
 		values[`list_${list.id}_cue_name`] = list.liveCueName ?? ''
