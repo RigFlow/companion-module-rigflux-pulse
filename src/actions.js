@@ -1,4 +1,4 @@
-import { segment } from './pulse.js'
+import { segment, planeClearPath, stageLayoutPath } from './pulse.js'
 
 /**
  * A text field for a named item in the show (timer, prop, look, text layer).
@@ -28,10 +28,13 @@ function text(value) {
 
 /**
  * @param {import('./main.js').default} self
- * @param {{ lists?: { name: string }[] }} items
+ * @param {{ lists?: { name: string }[], targetSets?: { name: string }[] }} items
+ * @param {string[]} stageLayouts
  */
-export function UpdateActions(self, cueChoices, items = { lists: [] }) {
+export function UpdateActions(self, cueChoices, items = { lists: [] }, stageLayouts = []) {
 	const lists = (items.lists ?? []).map((l) => ({ id: l.name, label: l.name }))
+	const sets = (items.targetSets ?? []).map((s) => ({ id: s.name, label: s.name }))
+	const layouts = stageLayouts.map((name) => ({ id: name, label: name }))
 	self.setActionDefinitions({
 		go: {
 			name: 'GO (next cue)',
@@ -178,6 +181,64 @@ export function UpdateActions(self, cueChoices, items = { lists: [] }) {
 			callback: async (action) => {
 				const what = text(action.options.what) || 'all'
 				await self.send('POST', what === 'all' ? '/clear' : `/clear/${segment(what)}`)
+			},
+		},
+		clear_plane: {
+			name: 'Clear a target set’s background or foreground',
+			description:
+				'Clears one plane of one target set until a cue puts something on it again: the side wall’s slide, without touching the main screen. Props stay.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'set',
+					label: 'Target set',
+					choices: sets,
+					default: sets[0]?.id ?? '',
+					allowCustom: true,
+					tooltip: 'Pick a target set, or type its name',
+				},
+				{
+					type: 'dropdown',
+					id: 'plane',
+					label: 'Plane',
+					default: 'foreground',
+					choices: [
+						{ id: 'foreground', label: 'Foreground (slides)' },
+						{ id: 'background', label: 'Background (media)' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const set = text(action.options.set)
+				if (set) await self.send('POST', planeClearPath(set, action.options.plane))
+			},
+		},
+		stage_layout: {
+			name: 'Stage layout: switch',
+			description:
+				'Switches a stage screen to another stage layout live, as ProPresenter’s Screens menu does: the band’s layout for the songs, the speaker’s for the sermon.',
+			options: [
+				{
+					type: 'textinput',
+					id: 'screen',
+					label: 'Stage screen',
+					default: '',
+					tooltip: 'The stage screen’s name in Pulse. Leave it empty for every stage screen.',
+					useVariables: true,
+				},
+				{
+					type: 'dropdown',
+					id: 'layout',
+					label: 'Stage layout',
+					choices: layouts,
+					default: layouts[0]?.id ?? '',
+					allowCustom: true,
+					tooltip: 'Pick a stage layout, or type its name',
+				},
+			],
+			callback: async (action) => {
+				const layout = text(action.options.layout)
+				if (layout) await self.send('POST', stageLayoutPath(text(action.options.screen), layout))
 			},
 		},
 		...Object.fromEntries(

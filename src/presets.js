@@ -1,4 +1,5 @@
 import { combineRgb } from '@companion-module/base'
+import { slugs } from './pulse.js'
 
 const BLACK = combineRgb(0, 0, 0)
 const WHITE = combineRgb(255, 255, 255)
@@ -33,9 +34,10 @@ function clearButton(what, label) {
 
 /**
  * @param {import('./main.js').default} self
- * @param {{ timers: { id: string, name: string }[], props: { id: string, name: string }[], lists?: { id: string, name: string }[] }} items
+ * @param {{ timers: { id: string, name: string }[], props: { id: string, name: string }[], lists?: { id: string, name: string }[], targetSets?: { id: string, name: string }[] }} items
+ * @param {string[]} stageLayouts
  */
-export function UpdatePresets(self, cues, items = { timers: [], props: [], lists: [] }) {
+export function UpdatePresets(self, cues, items = { timers: [], props: [], lists: [] }, stageLayouts = []) {
 	const v = (name) => `$(${self.label}:${name})`
 	/** @type {import('@companion-module/base').CompanionPresetDefinitions<import('./main.js').PulseSchema>} */
 	const presets = {
@@ -197,6 +199,49 @@ export function UpdatePresets(self, cues, items = { timers: [], props: [], lists
 		)
 	}
 
+	// A clear for each target set's slide and media — its foreground and
+	// background — green while there's something to clear and amber once
+	// it's cleared; and a button per stage layout, switching every stage
+	// screen to it, green while a stage screen shows it.
+	const sets = items.targetSets ?? []
+	/** A clear for one plane, lit by what's on it. */
+	const planeClear = (set, plane, label) =>
+		button(
+			`Clear ${set.name}'s ${label.toLowerCase()}`,
+			`CLEAR\n${set.name}\n${label}`,
+			'clear_plane',
+			{ set: set.name, plane },
+			{
+				feedbacks: [
+					{ feedbackId: 'plane_showing', options: { set: set.name, plane }, style: { bgcolor: GREEN, color: WHITE } },
+					{ feedbackId: 'plane_cleared', options: { set: set.name, plane }, style: { bgcolor: AMBER, color: BLACK } },
+				],
+			},
+		)
+	for (const set of sets) {
+		presets[`clear_fg_${set.id}`] = planeClear(set, 'foreground', 'SLIDE')
+		presets[`clear_bg_${set.id}`] = planeClear(set, 'background', 'MEDIA')
+	}
+	const layoutIDs = slugs(stageLayouts)
+	stageLayouts.forEach((layout, i) => {
+		presets[`stage_layout_${layoutIDs[i]}`] = button(
+			`Stage: ${layout}`,
+			`STAGE\n${layout}`,
+			'stage_layout',
+			{ screen: '', layout },
+			{
+				bgcolor: GREY,
+				feedbacks: [
+					{
+						feedbackId: 'stage_layout_showing',
+						options: { screen: '', layout },
+						style: { bgcolor: GREEN, color: WHITE },
+					},
+				],
+			},
+		)
+	})
+
 	// A button per cue in the loaded show, red while it's live and green
 	// while it's next, grouped by playlist.
 	const playlists = new Map()
@@ -304,6 +349,40 @@ export function UpdatePresets(self, cues, items = { timers: [], props: [], lists
 											type: /** @type {const} */ ('simple'),
 											name: 'Props',
 											presets: items.props.map((p) => `prop_${p.id}`),
+										},
+									]
+								: []),
+						],
+					},
+				]),
+		...(sets.length + stageLayouts.length === 0
+			? []
+			: [
+					{
+						id: 'sets_and_stage',
+						name: 'Target sets and stage',
+						definitions: [
+							...(sets.length
+								? [
+										{
+											id: 'plane_clears',
+											type: /** @type {const} */ ('simple'),
+											name: 'Clear one target set',
+											description:
+												'Each target set’s slide (foreground) or media (background), until a cue puts something back.',
+											presets: sets.flatMap((s) => [`clear_fg_${s.id}`, `clear_bg_${s.id}`]),
+										},
+									]
+								: []),
+							...(stageLayouts.length
+								? [
+										{
+											id: 'stage_layouts',
+											type: /** @type {const} */ ('simple'),
+											name: 'Stage layouts',
+											description:
+												'Switches every stage screen to a layout. To switch one, name its stage screen in the action.',
+											presets: layoutIDs.map((id) => `stage_layout_${id}`),
 										},
 									]
 								: []),

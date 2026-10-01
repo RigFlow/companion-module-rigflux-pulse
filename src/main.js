@@ -25,6 +25,8 @@ export default class PulseInstance extends InstanceBase {
 		super(internal)
 		this.state = null
 		this.cues = []
+		/** The show's stage layouts by name, for the layout switch. */
+		this.stageLayouts = []
 		this.client = null
 		/** The timer and prop names last defined, to see when they change. */
 		this.itemsKey = ''
@@ -131,7 +133,7 @@ export default class PulseInstance extends InstanceBase {
 		)
 		// Timers and props come in every frame; when the set of them changes
 		// (a show loaded or edited), their variables, choices and presets do.
-		const items = JSON.stringify(showItems(state), ['timers', 'props', 'lists', 'name'])
+		const items = JSON.stringify(showItems(state), ['timers', 'props', 'lists', 'targetSets', 'stageScreens', 'name'])
 		if (items !== this.itemsKey) {
 			this.itemsKey = items
 			UpdateVariableDefinitions(this)
@@ -153,6 +155,10 @@ export default class PulseInstance extends InstanceBase {
 			'timer_running',
 			'timer_over',
 			'media_ending',
+			'plane_showing',
+			'plane_cleared',
+			'plane_hidden',
+			'stage_layout_showing',
 		)
 		// The feed carries no cue list, and a show can be edited or swapped
 		// under us. A cue that isn't in the list we know means it changed.
@@ -165,10 +171,15 @@ export default class PulseInstance extends InstanceBase {
 		const client = this.client
 		if (!client) return
 		try {
-			const cues = await client.cues()
+			// The stage layouts change with the show, like the cue list, and
+			// aren't on the feed either.
+			const [cues, stageLayouts] = await Promise.all([client.cues(), client.stageLayouts()])
 			if (client !== this.client) return
-			const changed = JSON.stringify(cues) !== JSON.stringify(this.cues)
+			const changed =
+				JSON.stringify(cues) !== JSON.stringify(this.cues) ||
+				JSON.stringify(stageLayouts) !== JSON.stringify(this.stageLayouts)
 			this.cues = cues
+			this.stageLayouts = stageLayouts
 			if (changed) this.updateDefinitions()
 		} catch (e) {
 			this.log('warn', `Couldn't read the cue list: ${e.message}`)
@@ -178,9 +189,9 @@ export default class PulseInstance extends InstanceBase {
 	updateDefinitions() {
 		const choices = cueChoices(this.cues)
 		const items = showItems(this.state)
-		UpdateActions(this, choices, items)
-		UpdateFeedbacks(this, choices, items)
-		UpdatePresets(this, this.cues, items)
+		UpdateActions(this, choices, items, this.stageLayouts)
+		UpdateFeedbacks(this, choices, items, this.stageLayouts)
+		UpdatePresets(this, this.cues, items, this.stageLayouts)
 	}
 
 	/** Sends a command, reporting a refusal in the log rather than throwing. */

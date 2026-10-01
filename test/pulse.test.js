@@ -8,7 +8,19 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import { once } from 'node:events'
 import { WebSocketServer } from 'ws'
-import { PulseClient, variablesFromState, cueChoices, segment, slugs, clock, showItems } from '../src/pulse.js'
+import {
+	PulseClient,
+	variablesFromState,
+	cueChoices,
+	segment,
+	slugs,
+	clock,
+	showItems,
+	planeClearPath,
+	stageLayoutPath,
+	planeState,
+	stageLayoutShowing,
+} from '../src/pulse.js'
 
 const TOKEN = 'a'.repeat(64)
 
@@ -59,6 +71,15 @@ function fakeEngine() {
 				Object.assign(state, { liveCueNumber: '2', liveCueName: 'Countdown', nextCueNumber: '', nextCueName: '' })
 				for (const client of wss.clients) client.send(JSON.stringify(state))
 				res.end(JSON.stringify(state))
+			} else if (req.url === '/api/v1/stage/layouts') {
+				res.end(
+					JSON.stringify({
+						layouts: [
+							{ name: 'Band', width: 1920, height: 1080 },
+							{ name: 'Speaker', width: 1920, height: 1080 },
+						],
+					}),
+				)
 			} else if (req.url === '/api/v1/cues/99/go') {
 				res.writeHead(404).end(JSON.stringify({ error: 'no cue numbered 99' }))
 			} else {
@@ -302,11 +323,154 @@ test('an older engine without the new fields still gives every variable', () => 
 	const values = variablesFromState({ showName: 'Old' })
 	assert.equal(values.media_remaining, '0:00')
 	assert.equal(values.cleared, '')
-	assert.deepEqual(showItems({ showName: 'Old' }), { timers: [], props: [], lists: [] })
+	assert.deepEqual(showItems({ showName: 'Old' }), {
+		timers: [],
+		props: [],
+		lists: [],
+		targetSets: [],
+		stageScreens: [],
+	})
 	assert.equal(values.is_paused, false)
 	assert.equal(values.live_cue_notes, '')
 })
 
 test('names with spaces and slashes are one path segment', () => {
 	assert.equal(segment(' Pre show / loop '), 'Pre%20show%20%2F%20loop')
+})
+
+test('stage layouts come from the engine, and an engine without them has none', async () => {
+	const engine = await start()
+	const client = new PulseClient({ host: '127.0.0.1', port: engine.port, token: TOKEN })
+	try {
+		assert.deepEqual(await client.stageLayouts(), ['Band', 'Speaker'])
+	} finally {
+		engine.stop()
+	}
+	const older = http.createServer((_req, res) => res.writeHead(404).end(JSON.stringify({ error: 'not found' })))
+	older.listen(0, '127.0.0.1')
+	await once(older, 'listening')
+	try {
+		const client = new PulseClient({ host: '127.0.0.1', port: older.address().port, token: TOKEN })
+		assert.deepEqual(await client.stageLayouts(), [])
+	} finally {
+		older.close()
+	}
+})
+
+test('target sets come from the state, with ids for presets', () => {
+	const { targetSets } = showItems({ canvases: ['Main', 'Side wall', 'Main'] })
+	assert.deepEqual(targetSets, [
+		{ name: 'Main', id: 'main' },
+		{ name: 'Side wall', id: 'side_wall' },
+		{ name: 'Main', id: 'main_2' },
+	])
+	assert.deepEqual(showItems(null).targetSets, [])
+})
+
+test('a plane clear and a layout switch go to the engine’s routes', () => {
+	assert.equal(planeClearPath('Side wall', 'foreground'), '/targetsets/Side%20wall/foreground/clear')
+	assert.equal(planeClearPath('Main', 'background'), '/targetsets/Main/background/clear')
+	assert.equal(planeClearPath('Main', 'anything else'), '/targetsets/Main/foreground/clear')
+	assert.equal(stageLayoutPath('Wedge L', 'Speaker'), '/stage/Wedge%20L/layout/Speaker')
+	assert.equal(
+		stageLayoutPath('  ', 'Band / keys'),
+		'/stage/layout/Band%20%2F%20keys',
+		'empty switches every stage screen',
+	)
+})
+
+test('the plane clear and layout switch actions send what they say', async () => {
+	const { UpdateActions } = await import('../src/actions.js')
+	const sent = []
+	const self = {
+		setActionDefinitions(definitions) {
+			this.actions = definitions
+		},
+		send: async (method, path) => sent.push(`${method} ${path}`),
+	}
+	UpdateActions(self, [], showItems({ canvases: ['Main'] }), ['Band', 'Speaker'])
+	assert.deepEqual(
+		self.actions.clear_plane.options[0].choices.map((c) => c.id),
+		['Main'],
+	)
+	assert.equal(self.actions.stage_layout.options[1].default, 'Band')
+	await self.actions.clear_plane.callback({ options: { set: 'Main', plane: 'background' } })
+	await self.actions.stage_layout.callback({ options: { screen: '', layout: 'Speaker' } })
+	await self.actions.stage_layout.callback({ options: { screen: 'Wedge', layout: 'Band' } })
+	await self.actions.stage_layout.callback({ options: { screen: 'Wedge', layout: '' } })
+	assert.deepEqual(sent, [
+		'POST /targetsets/Main/background/clear',
+		'POST /stage/layout/Speaker',
+		'POST /stage/Wedge/layout/Band',
+	])
+})
+
+/** What a Pulse engine with target sets and stage screens reports. */
+const planesState = {
+	canvases: ['Main', 'Side wall'],
+	targetSets: [
+		{
+			name: 'Main',
+			foreground: { isShowing: true, isCleared: false, cueNumber: '4', cueName: 'Verse', hiddenSlices: 0 },
+			background: { isShowing: false, isCleared: true, cueNumber: '2', cueName: 'Walk-in', hiddenSlices: 0 },
+		},
+		{
+			name: 'Side wall',
+			foreground: { isShowing: false, isCleared: false, cueNumber: '', cueName: '', hiddenSlices: 0 },
+			background: { isShowing: true, isCleared: false, cueNumber: '7', cueName: 'Loop', hiddenSlices: 1 },
+		},
+	],
+	stageScreens: [
+		{ name: 'Wedge L', layout: 'Band' },
+		{ name: 'Wedge R', layout: 'Speaker' },
+	],
+}
+
+test('a plane reads what the engine reports, and nothing for a set it doesn’t know', () => {
+	assert.equal(planeState(planesState, 'Main', 'foreground').isShowing, true)
+	assert.equal(planeState(planesState, ' Main ', 'background').isCleared, true)
+	assert.equal(planeState(planesState, 'Side wall', 'background').hiddenSlices, 1)
+	assert.equal(planeState(planesState, 'Lobby', 'foreground'), null)
+	assert.equal(planeState({ canvases: ['Main'] }, 'Main', 'foreground'), null, 'an older engine can’t say')
+})
+
+test('a stage layout is showing on a named screen, or on any', () => {
+	assert.equal(stageLayoutShowing(planesState, 'Wedge L', 'Band'), true)
+	assert.equal(stageLayoutShowing(planesState, 'Wedge L', 'Speaker'), false)
+	assert.equal(stageLayoutShowing(planesState, '', 'Speaker'), true)
+	assert.equal(stageLayoutShowing(planesState, '', ''), false)
+	assert.equal(stageLayoutShowing({}, '', 'Band'), false)
+})
+
+test('target set cues and stage screen layouts become variables', () => {
+	const values = variablesFromState(planesState)
+	assert.equal(values.set_main_fg_cue, '4')
+	assert.equal(values.set_main_bg_cue, '2')
+	assert.equal(values.set_side_wall_bg_cue, '7')
+	assert.equal(values.set_side_wall_fg_cue, '')
+	assert.equal(values.stage_wedge_l_layout, 'Band')
+	assert.equal(values.stage_wedge_r_layout, 'Speaker')
+})
+
+test('the plane and stage layout feedbacks follow the state', async () => {
+	const { UpdateFeedbacks } = await import('../src/feedbacks.js')
+	const self = {
+		state: planesState,
+		setFeedbackDefinitions(definitions) {
+			this.feedbacks = definitions
+		},
+	}
+	UpdateFeedbacks(self, [], { timers: [], props: [], ...showItems(planesState) }, ['Band', 'Speaker'])
+	const check = (id, options) => self.feedbacks[id].callback({ options })
+	assert.equal(check('plane_showing', { set: 'Main', plane: 'foreground' }), true)
+	assert.equal(check('plane_showing', { set: 'Main', plane: 'background' }), false)
+	assert.equal(check('plane_cleared', { set: 'Main', plane: 'background' }), true)
+	assert.equal(check('plane_hidden', { set: 'Side wall', plane: 'background' }), true)
+	assert.equal(check('plane_hidden', { set: 'Main', plane: 'foreground' }), false)
+	assert.equal(check('stage_layout_showing', { screen: 'Wedge R', layout: 'Speaker' }), true)
+	assert.equal(check('stage_layout_showing', { screen: '', layout: 'Band' }), true)
+	assert.deepEqual(
+		self.feedbacks.stage_layout_showing.options[0].choices.map((c) => c.id),
+		['', 'Wedge L', 'Wedge R'],
+	)
 })

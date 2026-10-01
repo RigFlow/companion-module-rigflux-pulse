@@ -77,6 +77,20 @@ export class PulseClient extends EventEmitter {
 	}
 
 	/**
+	 * The show's stage layouts, by name. An engine from before stage
+	 * layouts answers 404, which is no layouts rather than an error.
+	 */
+	async stageLayouts() {
+		try {
+			const body = await this.request('GET', '/stage/layouts')
+			return (body?.layouts ?? []).map((layout) => layout.name).filter(Boolean)
+		} catch (e) {
+			if (e.status === 404) return []
+			throw e
+		}
+	}
+
+	/**
 	 * Opens the state feed, reconnecting until `close()`. Emits `state`
 	 * with each snapshot, `connected` / `disconnected`, and `unauthorized`
 	 * when the engine turns the token away (it doesn't retry then — a
@@ -167,19 +181,64 @@ export function clock(seconds) {
 	return h > 0 ? `${sign}${h}:${String(m).padStart(2, '0')}:${s}` : `${sign}${m}:${s}`
 }
 
-/** The show's timers, props and independent lists, each with the id its variables use. */
+/**
+ * The show's timers, props, independent lists and target sets, each with
+ * the id its variables and presets use. Target sets come from the state's
+ * `canvases` — Pulse's name for them underneath.
+ */
 export function showItems(state) {
 	const timers = state?.timers ?? []
 	const props = state?.props ?? []
 	const lists = state?.independentLists ?? []
+	// A newer engine reports each set with its planes; an older one only
+	// names them.
+	const sets = state?.targetSets?.map((s) => s.name) ?? state?.canvases ?? []
+	const screens = state?.stageScreens ?? []
 	const timerIDs = slugs(timers.map((t) => t.name))
 	const propIDs = slugs(props.map((p) => p.name))
 	const listIDs = slugs(lists.map((l) => l.name))
+	const setIDs = slugs(sets)
+	const screenIDs = slugs(screens.map((s) => s.name))
 	return {
 		timers: timers.map((timer, i) => ({ ...timer, id: timerIDs[i] })),
 		props: props.map((prop, i) => ({ ...prop, id: propIDs[i] })),
 		lists: lists.map((list, i) => ({ ...list, id: listIDs[i] })),
+		targetSets: sets.map((name, i) => ({ name, id: setIDs[i] })),
+		stageScreens: screens.map((screen, i) => ({ ...screen, id: screenIDs[i] })),
 	}
+}
+
+/**
+ * One plane of one target set as the engine last reported it, or null —
+ * for no such set, or an engine too old to say.
+ * @returns {{ isShowing: boolean, isCleared: boolean, cueNumber: string, cueName: string, hiddenSlices: number } | null}
+ */
+export function planeState(state, targetSet, plane) {
+	const set = state?.targetSets?.find((s) => s.name === String(targetSet ?? '').trim())
+	if (!set) return null
+	return (plane === 'background' ? set.background : set.foreground) ?? null
+}
+
+/** Whether `screen` — or, named empty, any stage screen — is showing `layout`. */
+export function stageLayoutShowing(state, screen, layout) {
+	const name = String(screen ?? '').trim()
+	const wanted = String(layout ?? '').trim()
+	if (!wanted) return false
+	return (state?.stageScreens ?? []).some((s) => (name === '' || s.name === name) && s.layout === wanted)
+}
+
+/** A clear for one plane of one target set: `POST /targetsets/{name}/{plane}/clear`. */
+export function planeClearPath(targetSet, plane) {
+	return `/targetsets/${segment(targetSet)}/${plane === 'background' ? 'background' : 'foreground'}/clear`
+}
+
+/**
+ * A stage layout switch: one stage screen by name, or every stage screen
+ * when the name is empty.
+ */
+export function stageLayoutPath(screen, layout) {
+	const name = String(screen ?? '').trim()
+	return name ? `/stage/${segment(name)}/layout/${segment(layout)}` : `/stage/layout/${segment(layout)}`
 }
 
 /** Companion variable values for a state snapshot. */
@@ -211,7 +270,12 @@ export function variablesFromState(state) {
 		live_cue_notes: state.liveCueNotes ?? '',
 		next_cue_notes: state.nextCueNotes ?? '',
 	}
-	const { timers, props, lists } = showItems(state)
+	const { timers, props, lists, targetSets, stageScreens } = showItems(state)
+	for (const set of targetSets) {
+		values[`set_${set.id}_fg_cue`] = planeState(state, set.name, 'foreground')?.cueNumber ?? ''
+		values[`set_${set.id}_bg_cue`] = planeState(state, set.name, 'background')?.cueNumber ?? ''
+	}
+	for (const screen of stageScreens) values[`stage_${screen.id}_layout`] = screen.layout ?? ''
 	for (const list of lists) {
 		values[`list_${list.id}_cue`] = list.liveCueNumber ?? ''
 		values[`list_${list.id}_cue_name`] = list.liveCueName ?? ''
